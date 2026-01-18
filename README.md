@@ -1,200 +1,146 @@
 # TurHR - HR Management System
 
-A comprehensive HR Management System built with the MERN stack (MongoDB, Express, React, Node.js). Features include multi-level UI, Role-Based Access Control (RBAC), payroll management, staff management, attendance tracking, project assignment, and employee communication.
-
-## Features
-
-- **Multi-level UI**: Hierarchical navigation with role-based menu visibility
-- **RBAC (Role-Based Access Control)**: Five role levels (super_admin, admin, hr_manager, manager, employee)
-- **Payroll Management**: Complete payroll processing with salary calculations
-- **Staff Management**: Employee directory with search and filtering
-- **Attendance Tracking**: Check-in/check-out system with attendance statistics
-- **Project Assignment**: Project management with employee assignment
-- **Employee Communication**: Real-time messaging system
-- **Modern Dashboard**: Analytics and metrics visualization
-- **Corporate Design**: Clean, professional UI with professional icons
+A comprehensive HR Management System with **HTML frontend** and **Node.js/Express backend**.
 
 ## Tech Stack
 
-### Backend
-- Node.js & Express.js
-- MongoDB with Mongoose
-- JWT Authentication
-- Socket.io for real-time communication
-- bcryptjs for password hashing
+- **Frontend**: Pure HTML, CSS, JavaScript (Tailwind CSS via CDN)
+- **Backend**: Node.js, Express.js, MongoDB
+- **No Build Step Required**: Just open HTML files or use a simple HTTP server
 
-### Frontend
-- React 18
-- React Router DOM
-- Tailwind CSS
-- Recharts for data visualization
-- Lucide React for professional icons
-- Axios for API calls
-- Vite as build tool
+## Features
+
+✅ **Multi-level UI** with role-based navigation  
+✅ **RBAC (Role-Based Access Control)** - 5 role levels  
+✅ **Payroll Management** - Complete payroll processing  
+✅ **Staff Management** - Employee directory with search/filter  
+✅ **Attendance Tracking** - Check-in/out system  
+✅ **Project Assignment** - Project management  
+✅ **Employee Communication** - Real-time messaging  
+✅ **Modern Dashboard** - Analytics and charts  
+✅ **Email Invitations** - Professional invitation system  
+
+## Quick Start
+
+### Backend Setup
+
+```bash
+cd backend
+npm install
+# Create .env file (see backend/.env.example)
+npm run dev
+```
+
+Backend runs on: `http://localhost:5000`
+
+### Frontend Setup
+
+**Option 1: Simple HTTP Server (Recommended)**
+```bash
+cd frontend
+npm install
+npm run serve
+```
+
+**Option 2: Python**
+```bash
+cd frontend
+python -m http.server 3000
+```
+
+**Option 3: PHP**
+```bash
+cd frontend
+php -S localhost:3000
+```
+
+**Option 4: Just Open Files**
+- Open `frontend/login.html` in your browser
+- Update `js/api.js` to set correct `API_URL`
+
+Frontend runs on: `http://localhost:3000`
 
 ## Project Structure
 
 ```
 HRSys/
-├── backend/
-│   ├── config/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   └── server.js
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   ├── styles/
-│   │   └── utils/
-│   └── public/
+├── backend/           # Node.js/Express API
+│   ├── models/        # MongoDB models
+│   ├── routes/        # API routes
+│   ├── controllers/   # Business logic
+│   └── middleware/    # Auth & validation
+├── frontend/          # HTML/CSS/JS
+│   ├── *.html        # Page files
+│   ├── css/          # Styles
+│   └── js/           # JavaScript modules
 └── README.md
 ```
 
-## Installation
+## Pages
 
-### Prerequisites
-- Node.js (v16 or higher)
-- MongoDB (local or MongoDB Atlas)
-- npm or yarn
+- `/login.html` - Login and registration
+- `/dashboard.html` - Main dashboard
+- `/employees.html` - Employee management
+- `/payroll.html` - Payroll management
+- `/attendance.html` - Attendance tracking
+- `/projects.html` - Project management
+- `/messages.html` - Employee messaging
 
-### Backend Setup
+## Environment Variables
 
-1. Navigate to the backend directory:
-```bash
-cd backend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create a `.env` file in the backend directory:
+### Backend (.env)
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/hrsys
-JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=your-secret-key
 JWT_EXPIRE=30d
-NODE_ENV=development
 CLIENT_URL=http://localhost:3000
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
 ```
 
-4. Start the backend server:
-```bash
-npm run dev
+### Frontend
+Edit `frontend/js/api.js` and set:
+```javascript
+const API_URL = 'http://localhost:5000/api';
+// Or your deployed backend URL
 ```
 
-The backend server will run on `http://localhost:5000`
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create a `.env` file in the frontend directory (optional):
-```env
-VITE_API_URL=http://localhost:5000/api
-```
-
-4. Start the development server:
-```bash
-npm run dev
-```
-
-The frontend will run on `http://localhost:3000`
-
-## Default Roles & Permissions
+## Default Roles
 
 - **super_admin**: Full system access
 - **admin**: Employee and payroll management
-- **hr_manager**: HR functions, payroll, and employee management
-- **manager**: Team management and project assignment
-- **employee**: View own data, check-in/out, view assigned projects
+- **hr_manager**: HR functions and payroll
+- **manager**: Team management
+- **employee**: View own data
 
 ## API Endpoints
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
-- `PUT /api/auth/profile` - Update profile
-
-### Employees
-- `GET /api/employees` - Get all employees (with filters)
-- `GET /api/employees/:id` - Get employee details
-- `POST /api/employees` - Create employee (admin only)
-- `PUT /api/employees/:id` - Update employee (admin only)
-- `DELETE /api/employees/:id` - Delete employee (admin only)
-
-### Payroll
+- `POST /api/auth/register` - Register user
+- `POST /api/auth/login` - Login
+- `GET /api/employees` - Get employees
 - `GET /api/payroll` - Get payroll records
-- `GET /api/payroll/stats` - Get payroll statistics
-- `POST /api/payroll` - Create payroll (admin/hr only)
-- `PUT /api/payroll/:id` - Update payroll (admin/hr only)
+- `GET /api/attendance` - Get attendance
+- `GET /api/projects` - Get projects
+- `POST /api/invitations` - Send invitation
+- `GET /api/dashboard/stats` - Dashboard statistics
 
-### Attendance
-- `GET /api/attendance` - Get attendance records
-- `POST /api/attendance/checkin` - Check in
-- `POST /api/attendance/checkout` - Check out
-- `GET /api/attendance/stats` - Get attendance statistics
+## Deployment
 
-### Projects
-- `GET /api/projects` - Get all projects
-- `POST /api/projects` - Create project (admin/manager only)
-- `PUT /api/projects/:id` - Update project
-- `PUT /api/projects/:id/assign` - Assign employee to project
+### Backend
+Deploy to Railway, Render, or Heroku. See `DEPLOYMENT_GUIDE.md`
 
-### Messages
-- `GET /api/messages/conversations` - Get conversations
-- `GET /api/messages/:roomId` - Get messages
-- `POST /api/messages` - Send message
+### Frontend
+Upload to any static hosting:
+- Vercel
+- Netlify
+- GitHub Pages
+- Any web server
 
-### Dashboard
-- `GET /api/dashboard/stats` - Get dashboard statistics
-
-## Usage
-
-1. Start MongoDB service
-2. Start backend server (`npm run dev` in backend folder)
-3. Start frontend server (`npm run dev` in frontend folder)
-4. Navigate to `http://localhost:3000`
-5. Login with your credentials (or register a new account)
-
-## Development
-
-### Backend Scripts
-- `npm start` - Start production server
-- `npm run dev` - Start development server with nodemon
-
-### Frontend Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-
-## Security Features
-
-- JWT-based authentication
-- Password hashing with bcrypt
-- Role-based route protection
-- Input validation
-- CORS configuration
+Just update `API_URL` in `js/api.js` to point to your deployed backend.
 
 ## License
 
-This project is open source and available under the MIT License.
-
-## Contributing
-
-Contributions, issues, and feature requests are welcome!
+MIT License

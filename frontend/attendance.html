@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Attendance Management</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="statsCards"></div>
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-4">
+                                <input type="date" id="startDate" class="px-4 py-2 border border-gray-300 rounded-lg">
+                                <span>to</span>
+                                <input type="date" id="endDate" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div class="flex gap-3">
+                                <button onclick="checkIn()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Check In</button>
+                                <button onclick="checkOut()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Check Out</button>
+                            </div>
+                        </div>
+                        <div id="attendanceTable"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/modal.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Attendance');
+
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
+        document.getElementById('endDate').value = today.toISOString().split('T')[0];
+
+        async function loadAttendance() {
+            try {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                const [attendanceRes, statsRes] = await Promise.all([
+                    api.get(`/attendance?startDate=${startDate}&endDate=${endDate}`),
+                    api.get(`/attendance/stats?startDate=${startDate}&endDate=${endDate}`)
+                ]);
+
+                const attendances = attendanceRes.data;
+                const stats = statsRes.data;
+
+                document.getElementById('statsCards').innerHTML = `
+                    <div class="bg-white rounded-lg shadow-sm p-4">
+                        <div class="text-sm text-gray-600 mb-1">Attendance Rate</div>
+                        <div class="text-2xl font-bold">${stats.attendanceRate?.toFixed(1) || 0}%</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-4">
+                        <div class="text-sm text-gray-600 mb-1">Present Days</div>
+                        <div class="text-2xl font-bold text-green-600">${stats.presentDays || 0}</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-4">
+                        <div class="text-sm text-gray-600 mb-1">Absent Days</div>
+                        <div class="text-2xl font-bold text-red-600">${stats.statusBreakdown?.absent || 0}</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-4">
+                        <div class="text-sm text-gray-600 mb-1">Total Days</div>
+                        <div class="text-2xl font-bold">${stats.totalDays || 0}</div>
+                    </div>
+                `;
+
+                if (attendances.length === 0) {
+                    document.getElementById('attendanceTable').innerHTML = '<p class="text-center text-gray-500 p-8">No attendance records found</p>';
+                    return;
+                }
+
+                document.getElementById('attendanceTable').innerHTML = `
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check In</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check Out</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${attendances.map(a => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${new Date(a.date).toLocaleDateString()}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${a.employeeId?.name || 'N/A'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${a.checkIn ? new Date(a.checkIn).toLocaleTimeString() : '-'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${a.checkOut ? new Date(a.checkOut).toLocaleTimeString() : '-'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${a.hoursWorked ? a.hoursWorked + ' hrs' : '-'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                            a.status === 'present' || a.status === 'on_time' ? 'bg-green-100 text-green-800' :
+                                            a.status === 'absent' ? 'bg-red-100 text-red-800' :
+                                            'bg-yellow-100 text-yellow-800'
+                                        }">${a.status.replace('_', ' ')}</span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                document.getElementById('attendanceTable').innerHTML = '<p class="text-red-600">Error loading attendance</p>';
+            }
+        }
+
+        async function checkIn() {
+            try {
+                await api.post('/attendance/checkin', {});
+                alert('Checked in successfully!');
+                loadAttendance();
+            } catch (error) {
+                alert(error.response?.data?.message || 'Check-in failed');
+            }
+        }
+
+        async function checkOut() {
+            try {
+                await api.post('/attendance/checkout', {});
+                alert('Checked out successfully!');
+                loadAttendance();
+            } catch (error) {
+                alert(error.response?.data?.message || 'Check-out failed');
+            }
+        }
+
+        document.getElementById('startDate').addEventListener('change', loadAttendance);
+        document.getElementById('endDate').addEventListener('change', loadAttendance);
+        loadAttendance();
+    </script>
+</body>
+</html>

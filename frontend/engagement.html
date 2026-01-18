@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Engagement - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Employee Engagement</h1>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                                <h2 class="text-lg font-semibold mb-4">Company Newsfeed</h2>
+                                <div id="announcementsList"></div>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                                <h2 class="text-lg font-semibold mb-4">Peer Recognition</h2>
+                                <div id="recognitionList"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                                <h2 class="text-lg font-semibold mb-4">Surveys</h2>
+                                <div id="surveysList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Employee Engagement');
+
+        async function loadAnnouncements() {
+            try {
+                const response = await api.get('/engagement/announcements');
+                const announcements = response.data;
+
+                document.getElementById('announcementsList').innerHTML = announcements.length === 0 ?
+                    '<p class="text-gray-500 text-center p-4 text-sm">No announcements</p>' :
+                    announcements.slice(0, 10).map(a => `
+                        <div class="border-b border-gray-200 p-4">
+                            <div class="flex items-start justify-between mb-2">
+                                <h3 class="font-semibold text-gray-900">${a.title}</h3>
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                    a.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                    a.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-gray-100 text-gray-800'
+                                }">${a.priority}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-2">${a.content}</p>
+                            <p class="text-xs text-gray-500">By ${a.createdBy?.name || 'Admin'} • ${new Date(a.createdAt).toLocaleDateString()}</p>
+                        </div>
+                    `).join('');
+            } catch (error) {
+                document.getElementById('announcementsList').innerHTML = '<p class="text-red-600 text-sm">Error loading announcements</p>';
+            }
+        }
+
+        async function loadRecognition() {
+            try {
+                const response = await api.get('/engagement/recognition');
+                const recognition = response.data;
+
+                document.getElementById('recognitionList').innerHTML = recognition.length === 0 ?
+                    '<p class="text-gray-500 text-center p-4 text-sm">No recognition yet</p>' :
+                    recognition.slice(0, 10).map(r => `
+                        <div class="border-b border-gray-200 p-3">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-primary-700 font-semibold text-sm">${r.fromEmployeeId?.name?.charAt(0) || 'E'}</span>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm"><strong>${r.fromEmployeeId?.name || 'Someone'}</strong> recognized <strong>${r.toEmployeeId?.name || 'Someone'}</strong></p>
+                                    <p class="text-sm text-gray-600 mt-1">${r.message}</p>
+                                    ${r.points > 0 ? `<p class="text-xs text-primary-600 mt-1">+${r.points} points</p>` : ''}
+                                    <p class="text-xs text-gray-500 mt-1">${new Date(r.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+            } catch (error) {
+                document.getElementById('recognitionList').innerHTML = '<p class="text-red-600 text-sm">Error loading recognition</p>';
+            }
+        }
+
+        async function loadSurveys() {
+            try {
+                const response = await api.get('/engagement/surveys');
+                const surveys = response.data;
+
+                document.getElementById('surveysList').innerHTML = surveys.length === 0 ?
+                    '<p class="text-gray-500 text-center p-4 text-sm">No active surveys</p>' :
+                    surveys.slice(0, 5).map(s => `
+                        <div class="border-b border-gray-200 p-3 hover:bg-gray-50">
+                            <h3 class="font-medium text-sm mb-1">${s.title}</h3>
+                            <p class="text-xs text-gray-500">${s.type} • ${s.questions?.length || 0} questions</p>
+                            <button onclick="takeSurvey('${s._id}')" class="mt-2 text-xs text-primary-600 hover:text-primary-700">Take Survey</button>
+                        </div>
+                    `).join('');
+            } catch (error) {
+                document.getElementById('surveysList').innerHTML = '<p class="text-red-600 text-sm">Error loading surveys</p>';
+            }
+        }
+
+        function takeSurvey(id) {
+            alert(`Survey modal for ${id} - to be implemented`);
+        }
+
+        loadAnnouncements();
+        loadRecognition();
+        loadSurveys();
+    </script>
+</body>
+</html>

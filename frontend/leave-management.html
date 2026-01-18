@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leave Management - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h1 class="text-2xl font-bold text-gray-900">Leave Management</h1>
+                        <button onclick="openLeaveRequestModal()" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">Request Leave</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white rounded-lg shadow-sm p-4">
+                            <div class="text-sm text-gray-600 mb-1">Available PTO</div>
+                            <div class="text-2xl font-bold" id="ptoBalance">-</div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm p-4">
+                            <div class="text-sm text-gray-600 mb-1">Sick Leave</div>
+                            <div class="text-2xl font-bold" id="sickBalance">-</div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm p-4">
+                            <div class="text-sm text-gray-600 mb-1">Personal Leave</div>
+                            <div class="text-2xl font-bold" id="personalBalance">-</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h2 class="text-lg font-semibold mb-4">Leave Requests</h2>
+                        <div id="leaveRequestsList"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/modal.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Leave Management');
+
+        // Load leave balance
+        if (user.leaveBalance) {
+            document.getElementById('ptoBalance').textContent = user.leaveBalance.pto || 0;
+            document.getElementById('sickBalance').textContent = user.leaveBalance.sick || 0;
+            document.getElementById('personalBalance').textContent = user.leaveBalance.personal || 0;
+        }
+
+        async function loadLeaveRequests() {
+            try {
+                const response = await api.get('/leave-requests');
+                const requests = response.data;
+
+                if (requests.length === 0) {
+                    document.getElementById('leaveRequestsList').innerHTML = '<p class="text-center text-gray-500 p-8">No leave requests</p>';
+                    return;
+                }
+
+                document.getElementById('leaveRequestsList').innerHTML = `
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Leave Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${requests.map(req => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${req.employeeId?.name || 'N/A'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${req.leaveType.toUpperCase()}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${new Date(req.startDate).toLocaleDateString()} - ${new Date(req.endDate).toLocaleDateString()}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${req.days}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                            req.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                            req.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                            'bg-yellow-100 text-yellow-800'
+                                        }">${req.status}</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        ${req.status === 'pending' && (auth.hasRole(['manager', 'admin', 'hr_manager']) || user.id === req.employeeId?._id) ? `
+                                            ${user.id !== req.employeeId?._id ? `
+                                                <button onclick="approveLeave('${req._id}')" class="text-sm text-green-600 hover:text-green-700 mr-2">Approve</button>
+                                                <button onclick="rejectLeave('${req._id}')" class="text-sm text-red-600 hover:text-red-700">Reject</button>
+                                            ` : '<span class="text-xs text-gray-500">Pending</span>'}
+                                        ` : ''}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                document.getElementById('leaveRequestsList').innerHTML = '<p class="text-red-600">Error loading leave requests</p>';
+            }
+        }
+
+        async function approveLeave(id) {
+            try {
+                await api.put(`/leave-requests/${id}/approve`, {});
+                loadLeaveRequests();
+            } catch (error) {
+                alert('Failed to approve leave request');
+            }
+        }
+
+        function rejectLeave(id) {
+            alert('Reject functionality - to be implemented');
+        }
+
+        function openLeaveRequestModal() {
+            alert('Leave request modal - to be implemented');
+        }
+
+        loadLeaveRequests();
+    </script>
+</body>
+</html>

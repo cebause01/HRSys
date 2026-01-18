@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Performance Management</h1>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                            <h2 class="text-lg font-semibold mb-4">Performance Reviews</h2>
+                            <div id="reviewsList"></div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                            <h2 class="text-lg font-semibold mb-4">Goals & OKRs</h2>
+                            <div id="goalsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Performance');
+
+        async function loadReviews() {
+            try {
+                const response = await api.get('/performance/reviews');
+                const reviews = response.data;
+
+                document.getElementById('reviewsList').innerHTML = reviews.length === 0 ?
+                    '<p class="text-gray-500 text-center p-4 text-sm">No reviews</p>' :
+                    reviews.slice(0, 5).map(r => `
+                        <div class="border-b border-gray-200 p-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium text-sm">${r.employeeId?.name || 'Employee'}</p>
+                                    <p class="text-xs text-gray-500">${r.reviewType} • ${r.period ? new Date(r.period.startDate).toLocaleDateString() : ''}</p>
+                                </div>
+                                <span class="text-lg font-bold">${r.ratings?.overall || 0}/5</span>
+                            </div>
+                        </div>
+                    `).join('');
+            } catch (error) {
+                document.getElementById('reviewsList').innerHTML = '<p class="text-red-600 text-sm">Error loading reviews</p>';
+            }
+        }
+
+        async function loadGoals() {
+            try {
+                const response = await api.get('/performance/goals');
+                const goals = response.data;
+
+                document.getElementById('goalsList').innerHTML = goals.length === 0 ?
+                    '<p class="text-gray-500 text-center p-4 text-sm">No goals</p>' :
+                    goals.slice(0, 5).map(g => {
+                        const progress = g.targetValue > 0 ? (g.currentValue / g.targetValue * 100) : 0;
+                        return `
+                            <div class="border-b border-gray-200 p-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="font-medium text-sm">${g.title}</p>
+                                    <span class="text-xs font-semibold">${Math.round(progress)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-primary-600 h-2 rounded-full" style="width: ${Math.min(progress, 100)}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+            } catch (error) {
+                document.getElementById('goalsList').innerHTML = '<p class="text-red-600 text-sm">Error loading goals</p>';
+            }
+        }
+
+        loadReviews();
+        loadGoals();
+    </script>
+</body>
+</html>

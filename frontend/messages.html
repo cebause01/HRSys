@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-[calc(100vh-200px)] flex">
+                    <div class="w-1/3 border-r border-gray-200 flex flex-col">
+                        <div class="p-4 border-b border-gray-200">
+                            <h2 class="text-lg font-semibold text-gray-900">Messages</h2>
+                        </div>
+                        <div id="conversationsList" class="flex-1 overflow-y-auto">
+                            <div class="loading"></div>
+                        </div>
+                    </div>
+                    <div class="flex-1 flex flex-col">
+                        <div id="chatArea" class="flex-1 overflow-y-auto p-4">
+                            <p class="text-center text-gray-500">Select a conversation</p>
+                        </div>
+                        <form id="messageForm" class="p-4 border-t border-gray-200 hidden">
+                            <div class="flex gap-2">
+                                <input type="text" id="messageInput" placeholder="Type a message..." class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
+                                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">Send</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/modal.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Messages');
+
+        let selectedConversation = null;
+
+        async function loadConversations() {
+            try {
+                const response = await api.get('/messages/conversations');
+                const conversations = response.data;
+
+                if (conversations.length === 0) {
+                    document.getElementById('conversationsList').innerHTML = '<p class="text-center text-gray-500 p-4 text-sm">No conversations</p>';
+                    return;
+                }
+
+                document.getElementById('conversationsList').innerHTML = conversations.map(conv => {
+                    const otherUser = conv.lastMessage?.senderId || conv.lastMessage?.receiverId;
+                    return `
+                        <button onclick="selectConversation('${conv.id}')" class="w-full p-4 text-left border-b border-gray-100 hover:bg-gray-50">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                                    <span class="text-primary-700 font-semibold text-sm">${otherUser?.name?.charAt(0) || 'U'}</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-medium text-gray-900 truncate">${otherUser?.name || 'Unknown'}</div>
+                                    <div class="text-sm text-gray-600 truncate">${conv.lastMessage?.content || ''}</div>
+                                </div>
+                            </div>
+                        </button>
+                    `;
+                }).join('');
+            } catch (error) {
+                document.getElementById('conversationsList').innerHTML = '<p class="text-red-600">Error loading conversations</p>';
+            }
+        }
+
+        async function selectConversation(roomId) {
+            selectedConversation = roomId;
+            document.getElementById('messageForm').classList.remove('hidden');
+            
+            try {
+                const response = await api.get(`/messages/${roomId}`);
+                const messages = response.data;
+
+                document.getElementById('chatArea').innerHTML = messages.map(msg => {
+                    const isSender = msg.senderId?._id === user._id;
+                    return `
+                        <div class="flex ${isSender ? 'justify-end' : 'justify-start'} mb-4">
+                            <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                isSender ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-900'
+                            }">
+                                <div class="text-sm">${msg.content}</div>
+                                <div class="text-xs mt-1 ${isSender ? 'text-primary-100' : 'text-gray-500'}">
+                                    ${new Date(msg.createdAt).toLocaleTimeString()}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                document.getElementById('chatArea').innerHTML = '<p class="text-red-600">Error loading messages</p>';
+            }
+        }
+
+        document.getElementById('messageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            if (!content || !selectedConversation) return;
+
+            try {
+                await api.post('/messages', {
+                    roomId: selectedConversation,
+                    content,
+                    type: 'direct'
+                });
+                input.value = '';
+                selectConversation(selectedConversation);
+            } catch (error) {
+                alert('Failed to send message');
+            }
+        });
+
+        loadConversations();
+    </script>
+</body>
+</html>

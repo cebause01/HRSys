@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projects - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h1 class="text-2xl font-bold text-gray-900">Projects</h1>
+                        <button onclick="openProjectModal()" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">New Project</button>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="loading"></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/modal.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Projects');
+
+        async function loadProjects() {
+            try {
+                const response = await api.get('/projects');
+                const projects = response.data;
+
+                if (projects.length === 0) {
+                    document.getElementById('projectsGrid').innerHTML = '<p class="col-span-full text-center text-gray-500 p-8">No projects found</p>';
+                    return;
+                }
+
+                document.getElementById('projectsGrid').innerHTML = projects.map(p => `
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between mb-3">
+                            <h3 class="text-lg font-semibold text-gray-900">${p.name}</h3>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                p.status === 'in_progress' ? 'bg-green-100 text-green-800' :
+                                p.status === 'planning' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                            }">${p.status.replace('_', ' ')}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">${p.description || 'No description'}</p>
+                        <div class="flex items-center justify-between text-sm text-gray-600">
+                            <span>${p.assignedEmployees?.length || 0} assigned</span>
+                            <span class="capitalize">${p.priority || 'medium'} priority</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('projectsGrid').innerHTML = '<p class="text-red-600">Error loading projects</p>';
+            }
+        }
+
+        function openProjectModal() {
+            alert('Project creation modal - to be implemented');
+        }
+
+        loadProjects();
+    </script>
+</body>
+</html>

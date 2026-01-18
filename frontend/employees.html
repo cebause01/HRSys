@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employees - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">All Employees</h1>
+                            <p class="text-sm text-gray-600 mt-1">Manage and view employee information</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="p-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-4">
+                            <input
+                                type="text"
+                                id="searchInput"
+                                placeholder="Search Employee"
+                                class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[250px]"
+                            />
+                            <div class="flex items-center gap-3">
+                                <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg">
+                                    <option value="all">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="on_leave">On Leave</option>
+                                </select>
+                                <select id="roleFilter" class="px-4 py-2 border border-gray-300 rounded-lg">
+                                    <option value="all">All Role</option>
+                                    <option value="employee">Employee</option>
+                                    <option value="manager">Manager</option>
+                                    <option value="hr_manager">HR Manager</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                                <button onclick="exportEmployees()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                    </svg>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="employeesTable" class="p-4">
+                            <div class="flex items-center justify-center h-32">
+                                <div class="loading"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/modal.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Employees');
+
+        let employees = [];
+
+        async function loadEmployees() {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const status = document.getElementById('statusFilter').value;
+                const role = document.getElementById('roleFilter').value;
+                
+                const params = new URLSearchParams();
+                if (search) params.append('search', search);
+                if (status !== 'all') params.append('status', status);
+                if (role !== 'all') params.append('role', role);
+
+                const response = await api.get(`/employees?${params.toString()}`);
+                employees = response.data;
+                
+                renderEmployees();
+            } catch (error) {
+                document.getElementById('employeesTable').innerHTML = '<p class="text-red-600">Error loading employees</p>';
+            }
+        }
+
+        function renderEmployees() {
+            if (employees.length === 0) {
+                document.getElementById('employeesTable').innerHTML = '<p class="text-center text-gray-500 p-8">No employees found</p>';
+                return;
+            }
+
+            const tableHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Departments</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${employees.map(emp => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${emp.employeeId || 'N/A'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                                                <span class="text-primary-700 font-semibold text-sm">${emp.name?.charAt(0).toUpperCase() || 'E'}</span>
+                                            </div>
+                                            <span class="text-sm font-medium text-gray-900">${emp.name}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${emp.email}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${emp.position || emp.role}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${emp.department || 'N/A'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                            emp.status === 'active' ? 'bg-green-100 text-green-800' :
+                                            emp.status === 'on_leave' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        }">
+                                            ${emp.status === 'active' ? 'Full-time' : emp.status === 'on_leave' ? 'On Leave' : 'Inactive'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            document.getElementById('employeesTable').innerHTML = tableHTML;
+        }
+
+        function exportEmployees() {
+            const csv = ['Name,Email,Role,Department,Status', ...employees.map(e => 
+                `"${e.name}","${e.email}","${e.role}","${e.department || 'N/A'}","${e.status}"`
+            )].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `employees_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        document.getElementById('searchInput').addEventListener('input', loadEmployees);
+        document.getElementById('statusFilter').addEventListener('change', loadEmployees);
+        document.getElementById('roleFilter').addEventListener('change', loadEmployees);
+
+        loadEmployees();
+    </script>
+</body>
+</html>

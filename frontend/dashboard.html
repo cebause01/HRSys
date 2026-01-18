@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f5f3ff',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div id="dashboardContent">
+                    <div class="flex items-center justify-center h-64">
+                        <div class="loading"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/modal.js"></script>
+    <script>
+        // Check authentication
+        if (!auth.isAuthenticated()) {
+            window.location.href = '/login.html';
+        }
+
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Dashboard');
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await api.get('/dashboard/stats');
+                const stats = response.data;
+
+                const dashboardHTML = `
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-sm font-medium text-gray-600">Total Employees</h3>
+                                </div>
+                                <div class="flex items-baseline gap-2 mb-2">
+                                    <span class="text-3xl font-bold text-gray-900">${stats.employees?.total || 0}</span>
+                                    <span class="text-sm text-green-600">+${stats.employees?.new || 0}</span>
+                                </div>
+                                <div class="space-y-2 mt-4">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-gray-600">Fulltime Employee</span>
+                                        <span class="font-medium">${stats.employees?.fulltime || 0}</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-green-500 h-2 rounded-full" style="width: 75%"></div>
+                                    </div>
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-gray-600">Freelance Employee</span>
+                                        <span class="font-medium">${stats.employees?.freelance || 0}</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-yellow-500 h-2 rounded-full" style="width: 25%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-sm font-medium text-gray-600">Attendance Overview</h3>
+                                </div>
+                                <div class="flex items-baseline gap-2 mb-2">
+                                    <span class="text-3xl font-bold text-gray-900">${stats.attendance?.rate?.toFixed(0) || 0}%</span>
+                                    <span class="text-sm text-green-600">
+                                        ${stats.attendance?.change > 0 ? '+' : ''}${stats.attendance?.change?.toFixed(0) || 0}% since last month
+                                    </span>
+                                </div>
+                                <div class="mt-4 space-y-2">
+                                    <div class="flex items-center gap-2 text-xs">
+                                        <div class="w-3 h-3 bg-yellow-500 rounded"></div>
+                                        <span>Sick Leave: ${stats.attendance?.breakdown?.sick_leave || 0}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xs">
+                                        <div class="w-3 h-3 bg-blue-500 rounded"></div>
+                                        <span>Day Off: ${stats.attendance?.breakdown?.day_off || 0}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xs">
+                                        <div class="w-3 h-3 bg-green-500 rounded"></div>
+                                        <span>On time: ${stats.attendance?.breakdown?.present || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                                <h3 class="text-sm font-medium text-gray-600 mb-4">Active Projects</h3>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-3xl font-bold text-gray-900">${stats.activeProjects || 0}</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-sm font-medium text-gray-600">Performance</h3>
+                                </div>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-3xl font-bold text-gray-900">98%</span>
+                                </div>
+                                <p class="text-sm text-gray-600 mt-2">Consistent punctuality and quality work</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Income Statistics</h3>
+                                <canvas id="incomeChart" height="300"></canvas>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Attendance Breakdown</h3>
+                                <canvas id="attendanceChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('dashboardContent').innerHTML = dashboardHTML;
+
+                // Create charts
+                if (stats.payroll && stats.payroll.length > 0) {
+                    const ctx1 = document.getElementById('incomeChart').getContext('2d');
+                    new Chart(ctx1, {
+                        type: 'bar',
+                        data: {
+                            labels: stats.payroll.map(p => ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][p.month - 1]),
+                            datasets: [{
+                                label: 'Income',
+                                data: stats.payroll.map(p => p.income),
+                                backgroundColor: '#8b5cf6'
+                            }, {
+                                label: 'Expense',
+                                data: stats.payroll.map(p => p.expense),
+                                backgroundColor: '#3b82f6'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false
+                        }
+                    });
+                }
+
+                if (stats.attendance?.breakdown) {
+                    const ctx2 = document.getElementById('attendanceChart').getContext('2d');
+                    new Chart(ctx2, {
+                        type: 'pie',
+                        data: {
+                            labels: ['On time', 'Sick Leave', 'Day Off'],
+                            datasets: [{
+                                data: [
+                                    stats.attendance.breakdown.present || 0,
+                                    stats.attendance.breakdown.sick_leave || 0,
+                                    stats.attendance.breakdown.day_off || 0
+                                ],
+                                backgroundColor: ['#10b981', '#f59e0b', '#3b82f6']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false
+                        }
+                    });
+                }
+            } catch (error) {
+                document.getElementById('dashboardContent').innerHTML = `
+                    <div class="flex items-center justify-center h-64">
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-4">Unable to load dashboard data</p>
+                            <p class="text-sm text-gray-500">Please ensure the backend server is running and MongoDB is connected.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

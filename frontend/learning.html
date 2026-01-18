@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning & Development - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Learning & Development</h1>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                            <h2 class="text-lg font-semibold mb-4">Available Courses</h2>
+                            <div id="coursesList"></div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                            <h2 class="text-lg font-semibold mb-4">My Enrollments</h2>
+                            <div id="enrollmentsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Learning & Development');
+
+        async function loadCourses() {
+            try {
+                const response = await api.get('/learning/courses');
+                const courses = response.data;
+
+                document.getElementById('coursesList').innerHTML = courses.length === 0 ?
+                    '<p class="text-gray-500 text-center p-4 text-sm">No courses available</p>' :
+                    courses.slice(0, 10).map(c => `
+                        <div class="border-b border-gray-200 p-3 hover:bg-gray-50">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h3 class="font-medium text-sm">${c.title}</h3>
+                                    <p class="text-xs text-gray-500">${c.category} • ${c.duration || 0}h</p>
+                                </div>
+                                ${c.isRequired ? '<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded">Required</span>' : ''}
+                            </div>
+                            <button onclick="enrollInCourse('${c._id}')" class="mt-2 text-xs text-primary-600 hover:text-primary-700">Enroll</button>
+                        </div>
+                    `).join('');
+            } catch (error) {
+                document.getElementById('coursesList').innerHTML = '<p class="text-red-600 text-sm">Error loading courses</p>';
+            }
+        }
+
+        async function loadEnrollments() {
+            try {
+                const response = await api.get('/learning/enrollments');
+                const enrollments = response.data;
+
+                document.getElementById('enrollmentsList').innerHTML = enrollments.length === 0 ?
+                    '<p class="text-gray-500 text-center p-4 text-sm">No enrollments</p>' :
+                    enrollments.map(e => `
+                        <div class="border-b border-gray-200 p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="font-medium text-sm">${e.courseId?.title || 'Course'}</p>
+                                <span class="text-xs font-semibold">${e.progress}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-primary-600 h-2 rounded-full" style="width: ${e.progress}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">${e.status}</p>
+                        </div>
+                    `).join('');
+            } catch (error) {
+                document.getElementById('enrollmentsList').innerHTML = '<p class="text-red-600 text-sm">Error loading enrollments</p>';
+            }
+        }
+
+        async function enrollInCourse(courseId) {
+            try {
+                await api.post('/learning/enroll', { courseId });
+                alert('Enrolled successfully!');
+                loadEnrollments();
+            } catch (error) {
+                alert('Failed to enroll in course');
+            }
+        }
+
+        loadCourses();
+        loadEnrollments();
+    </script>
+</body>
+</html>

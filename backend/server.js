@@ -11,13 +11,43 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://hr-8g3n.vercel.app',
+      process.env.CLIENT_URL
+    ].filter(Boolean),
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
+// CORS Configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://hr-8g3n.vercel.app',
+      process.env.CLIENT_URL
+    ].filter(Boolean);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -30,6 +60,18 @@ app.use('/api/projects', require('./routes/projects'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/invitations', require('./routes/invitations'));
+app.use('/api/documents', require('./routes/documents'));
+app.use('/api/jobs', require('./routes/jobs'));
+app.use('/api/candidates', require('./routes/candidates'));
+app.use('/api/onboarding', require('./routes/onboarding'));
+app.use('/api/leave-requests', require('./routes/leaveRequests'));
+app.use('/api/shifts', require('./routes/shifts'));
+app.use('/api/benefits', require('./routes/benefits'));
+app.use('/api/expenses', require('./routes/expenses'));
+app.use('/api/performance', require('./routes/performance'));
+app.use('/api/learning', require('./routes/learning'));
+app.use('/api/engagement', require('./routes/engagement'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 // Socket.io for real-time communication
 io.on('connection', (socket) => {

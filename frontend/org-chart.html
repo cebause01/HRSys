@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Chart - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Organization Chart</h1>
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div id="orgChart"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+        if (!auth.isAuthenticated()) window.location.href = '/login.html';
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Organization Chart');
+
+        async function loadOrgChart() {
+            try {
+                const response = await api.get('/employees/org-chart');
+                const chart = response.data;
+
+                let html = '';
+
+                if (chart.ceo) {
+                    html += `
+                        <div class="text-center mb-8">
+                            <div class="inline-block p-4 bg-primary-100 rounded-lg">
+                                <div class="font-semibold">${chart.ceo.name}</div>
+                                <div class="text-sm text-gray-600">${chart.ceo.position || 'CEO'}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
+                
+                Object.entries(chart.departments || {}).forEach(([dept, employees]) => {
+                    html += `
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h3 class="font-semibold text-gray-900 mb-4 text-center border-b pb-2">${dept}</h3>
+                            <div class="space-y-3">
+                                ${employees.map(emp => `
+                                    <div class="p-3 bg-gray-50 rounded">
+                                        <div class="font-medium text-sm">${emp.name}</div>
+                                        <div class="text-xs text-gray-600">${emp.position || emp.role}</div>
+                                        ${emp.reports.length > 0 ? `
+                                            <div class="mt-2 ml-4 border-l-2 border-gray-300 pl-2">
+                                                ${emp.reports.map(r => `
+                                                    <div class="text-xs py-1">→ ${r.name} (${r.position})</div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+
+                document.getElementById('orgChart').innerHTML = html || '<p class="text-center text-gray-500">No organization chart data available</p>';
+            } catch (error) {
+                document.getElementById('orgChart').innerHTML = '<p class="text-red-600">Error loading organization chart</p>';
+            }
+        }
+
+        loadOrgChart();
+    </script>
+</body>
+</html>

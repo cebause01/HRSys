@@ -154,3 +154,42 @@ exports.getEmployeeStats = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getOrgChart = async (req, res) => {
+  try {
+    const employees = await User.find({ status: 'active' }).select('name email position department managerId role');
+    
+    // Build hierarchy
+    const orgChart = {
+      ceo: employees.find(e => e.role === 'super_admin'),
+      departments: {}
+    };
+
+    employees.forEach(emp => {
+      if (emp.department) {
+        if (!orgChart.departments[emp.department]) {
+          orgChart.departments[emp.department] = [];
+        }
+        orgChart.departments[emp.department].push({
+          id: emp._id,
+          name: emp.name,
+          position: emp.position,
+          role: emp.role,
+          managerId: emp.managerId,
+          reports: employees.filter(e => e.managerId?.toString() === emp._id.toString()).map(e => ({
+            id: e._id,
+            name: e.name,
+            position: e.position
+          }))
+        });
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: orgChart
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

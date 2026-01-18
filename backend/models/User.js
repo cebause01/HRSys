@@ -55,6 +55,42 @@ const UserSchema = new mongoose.Schema({
   hireDate: {
     type: Date
   },
+  managerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  emergencyContact: {
+    name: String,
+    relationship: String,
+    phone: String
+  },
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String
+  },
+  leaveBalance: {
+    pto: { type: Number, default: 0 },
+    sick: { type: Number, default: 0 },
+    personal: { type: Number, default: 0 }
+  },
+  compensation: {
+    baseSalary: Number,
+    currency: { type: String, default: 'USD' },
+    payFrequency: { type: String, enum: ['monthly', 'biweekly', 'weekly'], default: 'monthly' }
+  },
+  location: {
+    latitude: Number,
+    longitude: Number,
+    address: String
+  },
+  skills: [String],
+  competencies: [{
+    competencyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Competency' },
+    level: Number
+  }],
   createdAt: {
     type: Date,
     default: Date.now

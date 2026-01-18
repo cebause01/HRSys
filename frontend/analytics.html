@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - TurHR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <div id="sidebar"></div>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="header"></div>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Advanced Analytics</h1>
+                    
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h2 class="text-lg font-semibold mb-4">Turnover Risk Analysis</h2>
+                        <div id="turnoverRisk"></div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h2 class="text-lg font-semibold mb-4">DEI Dashboard</h2>
+                        <div id="deiDashboard"></div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                        <h2 class="text-lg font-semibold mb-4">Workforce Planning</h2>
+                        <div id="workforcePlanning"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+        if (!auth.isAuthenticated() || !auth.hasRole(['admin', 'hr_manager', 'super_admin'])) {
+            window.location.href = '/dashboard.html';
+        }
+        
+        const user = auth.getUser();
+        document.getElementById('sidebar').innerHTML = components.sidebar(user);
+        document.getElementById('header').innerHTML = components.header(user, 'Analytics');
+
+        async function loadTurnoverRisk() {
+            try {
+                const response = await api.get('/analytics/turnover-risk');
+                const data = response.data;
+
+                if (data.length === 0) {
+                    document.getElementById('turnoverRisk').innerHTML = '<p class="text-gray-500 text-center p-4">No high-risk employees</p>';
+                    return;
+                }
+
+                document.getElementById('turnoverRisk').innerHTML = `
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk Score</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${data.map(item => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${item.employee.name}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">${item.employee.department || 'N/A'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-24 bg-gray-200 rounded-full h-2">
+                                                <div class="h-2 rounded-full ${item.riskScore > 70 ? 'bg-red-500' : item.riskScore > 50 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${item.riskScore}%"></div>
+                                            </div>
+                                            <span class="text-sm font-medium">${item.riskScore}%</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                            item.riskScore > 70 ? 'bg-red-100 text-red-800' :
+                                            item.riskScore > 50 ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-green-100 text-green-800'
+                                        }">${item.riskScore > 70 ? 'High Risk' : item.riskScore > 50 ? 'Medium Risk' : 'Low Risk'}</span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                document.getElementById('turnoverRisk').innerHTML = '<p class="text-red-600">Error loading turnover risk data</p>';
+            }
+        }
+
+        async function loadDEI() {
+            try {
+                const response = await api.get('/analytics/dei');
+                const dei = response.data;
+
+                document.getElementById('deiDashboard').innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="text-sm text-gray-600 mb-2">Total Employees</div>
+                            <div class="text-2xl font-bold">${dei.total || 0}</div>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="text-sm text-gray-600 mb-2">Departments</div>
+                            <div class="text-2xl font-bold">${Object.keys(dei.byDepartment || {}).length}</div>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="text-sm text-gray-600 mb-2">Roles</div>
+                            <div class="text-2xl font-bold">${Object.keys(dei.byRole || {}).length}</div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="font-semibold mb-2">By Department</h3>
+                        <div class="space-y-2">
+                            ${Object.entries(dei.byDepartment || {}).map(([dept, count]) => `
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm">${dept}</span>
+                                    <span class="font-medium">${count}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('deiDashboard').innerHTML = '<p class="text-red-600">Error loading DEI data</p>';
+            }
+        }
+
+        async function loadWorkforcePlanning() {
+            try {
+                const response = await api.get('/analytics/workforce-planning');
+                const data = response.data;
+
+                document.getElementById('workforcePlanning').innerHTML = `
+                    <div class="mb-4">
+                        <div class="text-sm text-gray-600 mb-1">Current Workforce</div>
+                        <div class="text-2xl font-bold">${data.current || 0}</div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2">12-Month Projection</h3>
+                        <canvas id="workforceChart" height="100"></canvas>
+                    </div>
+                `;
+
+                const ctx = document.getElementById('workforceChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.projections?.map(p => new Date(p.month).toLocaleDateString('en-US', { month: 'short' })) || [],
+                        datasets: [{
+                            label: 'Projected Workforce',
+                            data: data.projections?.map(p => p.estimated) || [],
+                            borderColor: '#7c3aed',
+                            backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                document.getElementById('workforcePlanning').innerHTML = '<p class="text-red-600">Error loading workforce planning data</p>';
+            }
+        }
+
+        loadTurnoverRisk();
+        loadDEI();
+        loadWorkforcePlanning();
+    </script>
+</body>
+</html>
